@@ -16,8 +16,24 @@ function getBinaryPath() { // OS判定して自己完結バイナリの実行フ
     }
 }
 
-function ReplayAnalysis(replayFilePath, { bot = false, sort = true } = {}) { // Fortniteのリプレイファイルを解析してプレイヤーデータを返す
+function ReplayAnalysis(replayFileDir, { bot = false, sort = true } = {}) { // Fortniteのリプレイファイルを解析してプレイヤーデータを返す
     return new Promise((resolve, reject) => {
+
+        let replayFiles;
+        try {
+            replayFiles = fs.readdirSync(replayFileDir).filter(f => f.endsWith('.replay'));
+        } catch (e) {
+            reject(new Error(`Failed to read directory: ${e.message}`));
+            return;
+        }
+
+        if (replayFiles.length === 0) {
+            reject(new Error(`No replay file found in directory: ${replayFileDir}`));
+            return;
+        }
+
+        // とりあえず1個目のファイルを処理（複数ある場合は要拡張）
+        const replayFilePath = path.join(replayFileDir, replayFiles[0]);
         const binPath = getBinaryPath();
 
         execFile(binPath, [replayFilePath], (error, stdout, stderr) => {
