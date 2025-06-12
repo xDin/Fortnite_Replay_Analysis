@@ -77,7 +77,7 @@ function ReplayAnalysis(replayFileDir, { bot = false, sort = true } = {}) { // F
                         Placement: player.Placement,
                         Kills: player.Kills,
                         TeamKills: player.TeamKills,
-                        aliveTime: aliveTimeDecimal,  // Decimalオブジェクトのまま保持
+                        aliveTime: aliveTimeDecimal,
                         EpicId: player.EpicId,
                         PlayerName: player.PlayerName,
                         Platform: player.Platform,
@@ -146,38 +146,47 @@ function mergeScores(scoreArrays) { // 複数マッチの結果をマージし�
 }
 
 function sortScores(arr) { // 公式準拠のスコアソート関数
+    // リザルトとしてpoint, ビクロイ数, マッチ数, 平均撃破数, 平均順位, 合計生存時間を追加したい
+    if (!Array.isArray(arr) || arr.length === 0) return arr;
+
+    arr.forEach(p => {
+        const matchCount = (p.partyPlacementList || []).filter((placement, i, arr) =>
+            placement === 1 && p.partyNumber === (arr[i] || {}).partyNumber
+        ).length || 1;
+        p.result = {
+            point: p.partyScore || 0,
+            victoryCount: p.partyVictoryRoyaleCount ?? (p.partyVictoryRoyale ? 1 : 0),
+            matchCount,
+            avgKills: (p.partyKills || 0) / matchCount,
+            avgPlacement: (p.partyPlacementList && p.partyPlacementList.length > 0)
+                ? (p.partyPlacementList.reduce((s, x) => s + x, 0) / p.partyPlacementList.length)
+                : p.partyPlacement,
+            totalAliveTime: sumMaxAliveTime(p.partyAliveTimeList, p.partyAliveTimeByMatch),
+        };
+    });
+
     return arr.sort((a, b) => {
         // 1. 累計獲得ポイント
-        if (b.partyScore !== a.partyScore) {
-            return b.partyScore - a.partyScore;
+        if (b.result.point !== a.result.point) {
+            return b.result.point - a.result.point;
         }
         // 2. セッション中の累計 Victory Royale 回数
-        if (b.partyVictoryRoyaleCount !== a.partyVictoryRoyaleCount) {
-            return b.partyVictoryRoyaleCount - a.partyVictoryRoyaleCount;
+        if (b.result.victoryCount !== a.result.victoryCount) {
+            return b.result.victoryCount - a.result.victoryCount;
         }
 
-        // マッチ数（配置と生存時間の配列長を使う想定）
-        const aCount = (a.partyPlacementList || a.partyAliveTimeList || []).length || 1;
-        const bCount = (b.partyPlacementList || b.partyAliveTimeList || []).length || 1;
-
         // 3. 平均撃破数
-        const aAvgKills = (a.partyKills || 0) / aCount;
-        const bAvgKills = (b.partyKills || 0) / bCount;
-        if (bAvgKills !== aAvgKills) {
-            return bAvgKills - aAvgKills;
+        if (b.result.avgKills !== a.result.avgKills) {
+            return b.result.avgKills - a.result.avgKills;
         }
 
         // 4. 平均順位（小さいほうが上位）
-        const aAvgPlacement = (a.partyPlacementList || []).reduce((s, x) => s + x, 0) / aCount;
-        const bAvgPlacement = (b.partyPlacementList || []).reduce((s, x) => s + x, 0) / bCount;
-        if (aAvgPlacement !== bAvgPlacement) {
-            return aAvgPlacement - bAvgPlacement;
+        if (b.result.avgPlacement !== a.result.avgPlacement) {
+            return b.result.avgPlacement - a.result.avgPlacement;
         }
 
         // 5. 全マッチの合計生存時間
-        const aTime = sumMaxAliveTime(a.partyAliveTimeByMatch);
-        const bTime = sumMaxAliveTime(b.partyAliveTimeByMatch);
-        const cmp = bTime.comparedTo(aTime);
+        const cmp = b.result.totalAliveTime.comparedTo(a.result.totalAliveTime);
         if (cmp !== 0) return cmp;
 
         // 6. 最終手段：1マッチ目のパーティ番号が小さい順
@@ -185,13 +194,35 @@ function sortScores(arr) { // 公式準拠のスコアソート関数
     });
 }
 
-function sumMaxAliveTime(aliveTimeByMatch) {
-    return (Array.isArray(aliveTimeByMatch) ? aliveTimeByMatch : [])
-        .reduce((sum, match) => {
-            const times = Array.isArray(match.times) ? match.times : [new Decimal(0)];
-            const maxTime = times.reduce((max, t) => (t.comparedTo(max) > 0 ? t : max), new Decimal(0));
+function sumMaxAliveTime(partyAliveTimeList, partyAliveTimeByMatch) {
+    if (Array.isArray(partyAliveTimeByMatch) && partyAliveTimeByMatch.length > 0) {
+        // 複数マッチ分の最大値を足す処理
+        return partyAliveTimeByMatch.reduce((sum, match) => {
+            if (!Array.isArray(match.times) || match.times.length === 0) return sum;
+            const maxTime = match.times.reduce(
+                (max, t) => {
+                    const timeDec = new Decimal(t);
+                    return timeDec.greaterThan(max) ? timeDec : max;
+                },
+                new Decimal(0)
+            );
             return sum.plus(maxTime);
         }, new Decimal(0));
+    }
+
+    // こっちは単一マッチ用。配列の最大値返すだけ
+    if (Array.isArray(partyAliveTimeList) && partyAliveTimeList.length > 0) {
+        const maxVal = partyAliveTimeList.reduce(
+            (max, t) => {
+                const timeDec = new Decimal(t);
+                return timeDec.greaterThan(max) ? timeDec : max;
+            },
+            new Decimal(0)
+        );
+        return maxVal;
+    }
+
+    return new Decimal(0);
 }
 
 module.exports = {
