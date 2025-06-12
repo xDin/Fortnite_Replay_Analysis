@@ -1,0 +1,9 @@
+# コード変更ログ
+.history
+
+# C#
+[Cc][Ss]proj/[Oo]bj/
+[Cc][Ss]proj/[Bb]in/[Dd]ebug/
+
+# Node.js
+node_modules/
