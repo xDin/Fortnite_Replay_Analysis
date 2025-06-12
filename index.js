@@ -1,4 +1,5 @@
 const os = require('os');
+const fs = require('fs');
 const path = require('path');
 const Decimal = require('decimal.js');
 const { execFile } = require('child_process');

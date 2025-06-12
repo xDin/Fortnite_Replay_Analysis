@@ -4,7 +4,7 @@ const { ReplayAnalysis } = require('./index.js');
 
 (async () => {
     try {
-        const replayFilePath = path.resolve(__dirname, 'replay', 'conoma-custam.replay'); // 実際のreplayファイルパス
+        const replayFilePath = path.resolve(__dirname, 'replay'); // 実際のreplayファイルパス
         const result = await ReplayAnalysis(replayFilePath, { bot: true, sort: true });
         // jsoutputフォルダに出力
         const outputDir = path.join(__dirname, 'jsoutput');
