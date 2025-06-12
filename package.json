@@ -2,6 +2,10 @@
   "name": "fortnite-replay-analysis",
   "version": "1.0.0",
   "description": "Fortniteのリプレイ解析をNode.jsから呼べる自己完結型C#バイナリラッパー",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yuyutti/Fortnite_Replay_Analysis"
+  },
   "main": "index.js",
   "scripts": {
     "test": "node test.js"
