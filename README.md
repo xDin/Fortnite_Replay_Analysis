@@ -25,7 +25,7 @@ const { ReplayAnalysis, mergeScores, sortScores, calculateScore } = require('for
     // 1試合分のリプレイ解析（返り値はJSON形式）
     // rawPlayerData: 元の解析結果、生データ
     // processedPlayerInfo: bot除外や順位ソート済みのプレイヤーデータ
-    const { rawPlayerData, processedPlayerInfo } = await ReplayAnalysis('./path/to/replayDir', { bot: false, sort: true });
+    const { rawReplayData, rawPlayerData, processedPlayerInfo } = await ReplayAnalysis('./path/to/replayDir', { bot: false, sort: true });
 
     console.log('Raw Data:', rawPlayerData);
     console.log('Processed Player Info:', processedPlayerInfo);

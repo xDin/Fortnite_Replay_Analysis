@@ -46,8 +46,17 @@ function ReplayAnalysis(replayFileDir, { bot = false, sort = true } = {}) { // F
                 console.warn(`Warning: ${stderr}`);
             }
 
+            let parsed;
             try {
-                const playerData = JSON.parse(stdout);
+                parsed = JSON.parse(stdout);
+            } catch (jsonErr) {
+                reject(new Error(`JSON parse error: ${jsonErr.message}`));
+                return;
+            }
+
+            const playerData = parsed.PlayerData;
+
+            try {
 
                 if (!Array.isArray(playerData)) {
                     reject(new Error(`Unexpected JSON format: playerData is not an array.`));
@@ -94,7 +103,9 @@ function ReplayAnalysis(replayFileDir, { bot = false, sort = true } = {}) { // F
                 }
 
                 resolve({
-                    rawPlayerData: playerData, processedPlayerInfo: filteredAndSortedPlayerInfo,
+                    rawReplayData: parsed,
+                    rawPlayerData: playerData,
+                    processedPlayerInfo: filteredAndSortedPlayerInfo
                 });
             } catch (jsonErr) {
                 reject(new Error(`JSON parse error: ${jsonErr.message}`));

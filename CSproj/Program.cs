@@ -9,7 +9,7 @@ public class Startup
     {
         var reader = new ReplayReader();
         var replay = await Task.Run(() => reader.ReadReplay(replayFile));
-        return JsonConvert.SerializeObject(replay.PlayerData, Formatting.Indented);
+        return JsonConvert.SerializeObject(replay, Formatting.Indented);
     }
 
     public static async Task Main(string[] args)
