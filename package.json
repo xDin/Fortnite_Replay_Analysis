@@ -1,6 +1,6 @@
 {
   "name": "fortnite-replay-analysis",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "Fortniteのリプレイ解析をNode.jsから呼べる自己完結型C#バイナリラッパー",
   "repository": {
     "type": "git",
