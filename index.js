@@ -17,24 +17,27 @@ function getBinaryPath() { // OS判定して自己完結バイナリの実行フ
     }
 }
 
-function ReplayAnalysis(replayFileDir, { bot = false, sort = true } = {}) { // Fortniteのリプレイファイルを解析してプレイヤーデータを返す
+function ReplayAnalysis(inputPath, { bot = false, sort = true } = {}) { // Fortniteのリプレイファイルを解析してプレイヤーデータを返す
     return new Promise((resolve, reject) => {
 
-        let replayFiles;
+        let replayFilePath;
+
         try {
-            replayFiles = fs.readdirSync(replayFileDir).filter(f => f.endsWith('.replay'));
+            const stat = fs.statSync(inputPath);
+            if (stat.isDirectory()) {
+                const replayFiles = fs.readdirSync(inputPath).filter(f => f.endsWith('.replay'));
+                if (replayFiles.length === 0) {
+                    return reject(new Error(`No .replay files found in directory: ${inputPath}`));
+                }
+                replayFilePath = path.join(inputPath, replayFiles[0]);
+            } else if (stat.isFile()) {
+                replayFilePath = inputPath;
+            } else {
+                return reject(new Error(`Invalid input path: ${inputPath}`));
+            }
         } catch (e) {
-            reject(new Error(`Failed to read directory: ${e.message}`));
-            return;
+            return reject(new Error(`Failed to access path: ${e.message}`));
         }
-
-        if (replayFiles.length === 0) {
-            reject(new Error(`No replay file found in directory: ${replayFileDir}`));
-            return;
-        }
-
-        // とりあえず1個目のファイルを処理（複数ある場合は要拡張）
-        const replayFilePath = path.join(replayFileDir, replayFiles[0]);
         const binPath = getBinaryPath();
 
         execFile(binPath, [replayFilePath], (error, stdout, stderr) => {
@@ -114,18 +117,24 @@ function ReplayAnalysis(replayFileDir, { bot = false, sort = true } = {}) { // F
     });
 }
 
-async function calculateScore({ matchDataPath, points, killCountUpperLimit = null, killPointMultiplier = 1 } = {}) {
-    if (!matchDataPath || !fs.existsSync(matchDataPath)) {
-        throw new Error(`Match data file not found: ${matchDataPath}`);
+async function calculateScore({ matchData, points, killCountUpperLimit = null, killPointMultiplier = 1 } = {}) {
+    if (!matchData) throw new Error('matchData is required');
+
+    let playerInfo;
+    if (typeof matchData === 'string') {
+        if (!fs.existsSync(matchData)) throw new Error(`Match data path does not exist: ${matchData}`);
+        const rawData = fs.readFileSync(matchData, 'utf8');
+        try {
+            playerInfo = JSON.parse(rawData);
+        } catch (e) {
+            throw new Error(`Failed to parse JSON from file: ${e.message}`);
+        }
     }
-    if (!points || typeof points !== 'object' || Object.keys(points).length === 0) {
-        throw new Error('Points configuration is required and must be a non-empty object.');
-    }
-    if (killCountUpperLimit !== null && (typeof killCountUpperLimit !== 'number' || killCountUpperLimit < 0)) {
-        throw new Error('killCountUpperLimit must be a non-negative number or null.');
+    else if (Array.isArray(matchData)) playerInfo = matchData;
+    else {
+        throw new Error('matchData must be either a file path (string) or parsed JSON array');
     }
 
-    const playerInfo = JSON.parse(fs.readFileSync(path.join(matchDataPath), 'utf8'));
     const partyScore = playerInfo.reduce((acc, player) => {
         if (!acc[player.partyNumber]) {
             const limitedKills = killCountUpperLimit == null
@@ -168,39 +177,38 @@ function mergeScores(scoreArrays) { // 複数マッチの結果をマージし�
             const key = JSON.stringify([...p.partyMemberIdList].sort());
             if (!map.has(key)) {
                 map.set(key, {
-                    partyPlacement: null,
-                    partyNumber: p.partyNumber,
                     partyScore: p.partyScore,
                     partyPoint: p.partyPoint,
                     partyKills: p.partyKills,
-                    partyMemberList: [...p.partyMemberList],
-                    matchList: [p.matchName],
+                    partyKillsNoLimit: p.partyKillsNoLimit,
                     partyVictoryRoyaleCount: p.partyVictoryRoyale ? 1 : 0,
+                    matchList: [p.matchName],
+                    partyMemberList: [...p.partyMemberList],
                     partyAliveTimeByMatch: [
                         { match: p.matchName, times: [...(p.partyAliveTimeList || [])] }
                     ],
-                    partyPlacementList: [p.partyPlacement]
+                    partyPlacementList: [p.partyPlacement],
+                    matchs: { [p.matchName]: { ...p } }
                 });
             } else {
                 const ex = map.get(key);
-                ex.matchList.push(p.matchName);
                 ex.partyScore              += p.partyScore;
-                ex.partyKills              += p.partyKills;
                 ex.partyPoint              += p.partyPoint;
+                ex.partyKills              += p.partyKills;
+                ex.partyKillsNoLimit       += p.partyKillsNoLimit;
                 ex.partyVictoryRoyaleCount += p.partyVictoryRoyale ? 1 : 0;
+                ex.matchList.push(p.matchName);
                 ex.partyAliveTimeByMatch.push({
                     match: p.matchName,
                     times: [...(p.partyAliveTimeList || [])]
                 });
                 ex.partyPlacementList.push(p.partyPlacement);
+                ex.matchs[p.matchName] = { ...p };
             }
         })
     );
     
-    return Array.from(map.values()).map(p => ({
-        ...p,
-        partyPlacement: p.partyPlacementList.reduce((a, b) => a + b, 0) / p.partyPlacementList.length
-    }));
+    return Array.from(map.values());
 }
 
 function sortScores(arr) { // 公式準拠のスコアソート関数
@@ -208,47 +216,58 @@ function sortScores(arr) { // 公式準拠のスコアソート関数
     if (!Array.isArray(arr) || arr.length === 0) return arr;
 
     arr.forEach(p => {
-        const matchCount = (p.partyPlacementList || []).filter((placement, i, arr) =>
-            placement === 1 && p.partyNumber === (arr[i] || {}).partyNumber
-        ).length || 1;
-        p.result = {
+        const matchCount = (p.matchList || []).length || 1;
+        p.summary = {
             point: p.partyScore || 0,
             victoryCount: p.partyVictoryRoyaleCount ?? (p.partyVictoryRoyale ? 1 : 0),
             matchCount,
-            avgKills: (p.partyKills || 0) / matchCount,
-            avgPlacement: (p.partyPlacementList && p.partyPlacementList.length > 0)
-                ? (p.partyPlacementList.reduce((s, x) => s + x, 0) / p.partyPlacementList.length)
-                : p.partyPlacement,
+            // Decimalを使って計算
+            avgKills: matchCount > 0
+                ? new Decimal(p.partyKills || 0).dividedBy(matchCount)
+                : new Decimal(p.partyKills || 0),
+            avgPlacement: Array.isArray(p.partyPlacementList) && p.partyPlacementList.length > 0 && matchCount > 0
+                ? new Decimal(p.partyPlacementList.reduce((sum, val) => sum + val, 0)).dividedBy(matchCount)
+                : new Decimal(p.partyPlacement || 0),
             totalAliveTime: sumMaxAliveTime(p.partyAliveTimeList, p.partyAliveTimeByMatch),
         };
     });
 
     return arr.sort((a, b) => {
         // 1. 累計獲得ポイント
-        if (b.result.point !== a.result.point) {
-            return b.result.point - a.result.point;
+        if (b.summary.point !== a.summary.point) {
+            return b.summary.point - a.summary.point;
         }
         // 2. セッション中の累計 Victory Royale 回数
-        if (b.result.victoryCount !== a.result.victoryCount) {
-            return b.result.victoryCount - a.result.victoryCount;
+        if (b.summary.victoryCount !== a.summary.victoryCount) {
+            return b.summary.victoryCount - a.summary.victoryCount;
         }
 
         // 3. 平均撃破数
-        if (b.result.avgKills !== a.result.avgKills) {
-            return b.result.avgKills - a.result.avgKills;
+        const cmpAvgKills = b.summary.avgKills.comparedTo(a.summary.avgKills);
+        if (cmpAvgKills !== 0) {
+            return cmpAvgKills;
         }
 
         // 4. 平均順位（小さいほうが上位）
-        if (b.result.avgPlacement !== a.result.avgPlacement) {
-            return b.result.avgPlacement - a.result.avgPlacement;
+        const cmpAvgPlacement = b.summary.avgPlacement.comparedTo(a.summary.avgPlacement);
+        if (cmpAvgPlacement !== 0) {
+            return cmpAvgPlacement;
         }
 
         // 5. 全マッチの合計生存時間
-        const cmp = b.result.totalAliveTime.comparedTo(a.result.totalAliveTime);
-        if (cmp !== 0) return cmp;
+        const cmpTime = b.summary.totalAliveTime.comparedTo(a.summary.totalAliveTime);
+        if (cmpTime !== 0) {
+            return cmpTime;
+        }
 
         // 6. 最終手段：1マッチ目のパーティ番号が小さい順
-        return a.partyNumber - b.partyNumber;
+        const numA = Array.isArray(a.matchList) && a.matchList.length > 0
+            ? a.matchs[a.matchList[0]].partyNumber
+            : a.partyNumber;
+        const numB = Array.isArray(b.matchList) && b.matchList.length > 0
+            ? b.matchs[b.matchList[0]].partyNumber
+            : b.partyNumber;
+        return numA - numB;
     });
 }
 
