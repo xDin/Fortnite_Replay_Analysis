@@ -1,112 +1,117 @@
+## 🌐 Language
+
+- [English](./README.md)
+- [日本語](./README.ja.md)
+
 # Fortnite Replay Analysis
 
-FortniteのリプレイファイルをNode.jsで解析し、プレイヤーデータを取得・集計・ソートできるモジュールです。
+Fortnite Replay Analysis is a Node.js module for reading Fortnite replay files, extracting player data, and ranking results.
 
-## 特徴
+## Features
 
-* OS判定でビルド済みの自己完結バイナリを呼び出し、高速に解析できます。
-* botプレイヤーの除外や順位ソートのオプションに対応しています。
-* 複数マッチのスコアをパーティ単位でマージして集計できます。
-* 公式準拠のルールでスコアをソートできます。
+* Detects the operating system and invokes a prebuilt, self-contained binary for fast parsing.
+* Supports excluding bot players and optional placement sorting.
+* Merges scores across multiple matches by party.
+* Sorts scores following the official Fortnite scoring rules.
 
-## インストール
+## Installation
 
 ```bash
 npm install fortnite-replay-analysis@latest
 ```
 
-## 使い方
-
-以下は、1試合のリプレイ解析からスコア計算、複数マッチのマージまでを実行する例です。
+## Usage
 
 ```js
-const {
-    ReplayAnalysis,
-    calculateScore,
-    sortScores,
-    mergeScores
-} = require('fortnite-replay-analysis');
-
-(async () => {
-    // リプレイ解析（ディレクトリ指定時は最初に見つけた .replay を処理、ファイル指定時はそのファイルを使用）
     const {
-        rawReplayData,
-        rawPlayerData,
-        processedPlayerInfo
-    } = await ReplayAnalysis(
-        './path/to/replayDirOrFile',
-        { bot: false, sort: true }
-    );
+        ReplayAnalysis,
+        calculateScore,
+        sortScores,
+        mergeScores
+    } = require('fortnite-replay-analysis');
 
-    console.log('Raw Data:', rawPlayerData);
-    console.log('Processed Player Info:', processedPlayerInfo);
+    (async () => {
+        // Parse a single match (directory: first .replay file; file: specific .replay)
+        const {
+            rawReplayData,
+            rawPlayerData,
+            processedPlayerInfo
+        } = await ReplayAnalysis(
+            './path/to/replayDirOrFile',
+            { bot: false, sort: true }
+        );
 
-    // 公式ルールでソート
-    const sortedScores = sortScores(processedPlayerInfo);
+        console.log('Raw Data:', rawPlayerData);
+        console.log('Processed Player Info:', processedPlayerInfo);
 
-    // ポイント＆キル計算
-    const score = await calculateScore({
-        matchData: processedPlayerInfo,
-        points: { 1: 11, 2: 6, 3: 5, 4: 4, 5: 3, 6: 2 },
-        killCountUpperLimit: 10,      // 省略可能、デフォルト null（無制限）
-        killPointMultiplier: 1        // 1撃破あたりの倍率（1の場合1撃破1pt, 2の場合1撃破2ポイント）、省略可能、デフォルト 1
-    });
+        // Sort by official rules
+        const sortedScores = sortScores(processedPlayerInfo);
 
-    console.log('Score:', score);
+        // Calculate points & kills
+        const score = await calculateScore({
+            matchData: processedPlayerInfo,
+            points: { 1: 11, 2: 6, 3: 5, 4: 4, 5: 3, 6: 2 },
+            killCountUpperLimit: 10,      // optional, default null (no limit)
+            killPointMultiplier: 1        // points per kill multiplier, optional, default 1
+        });
 
-    // 複数マッチのマージと再ソート
-    const merged = mergeScores([ sortedScores, sortedScores2 ]);
-    const finalSorted = sortScores(merged);
+        console.log('Score:', score);
 
-    console.log('Merged & Sorted:', finalSorted);
-})();
+        // Merge and re-sort multiple matches
+        const merged = mergeScores([sortedScores, sortedScores2]);
+        const finalSorted = sortScores(merged);
+
+        console.log('Merged & Sorted:', finalSorted);
+    })();
 ```
 
 ## API
 
 ### `ReplayAnalysis(inputPath, options)`
 
-* `inputPath`: .replayファイルがあるディレクトリまたはファイルのパス
-* `options`（省略可）:
+* `inputPath`: Path to a directory or a `.replay` file.
+* `options` (optional):
 
-  * `bot`（boolean）: botプレイヤーを含めるか（デフォルト: `false`）
-  * `sort`（boolean）: 順位でソートするか（デフォルト: `true`）
-* 戻り値: Promise<{
-  rawReplayData: Object,
-  rawPlayerData: Array,
-  processedPlayerInfo: Array
-  }>
+  * `bot` (boolean): Include bot players (default: `false`).
+  * `sort` (boolean): Sort by placement (default: `true`).
+* Returns: `Promise<{ rawReplayData: Object, rawPlayerData: Array, processedPlayerInfo: Array }>`
 
 ### `calculateScore({ matchData, points, killCountUpperLimit, killPointMultiplier })`
 
-* `matchData`: `ReplayAnalysis`の`processedPlayerInfo`配列、またはそのJSONファイルへのパス
-* `points`: 順位ごとのポイント設定オブジェクト（例: `{1:11,2:6,...}`）
-* `killCountUpperLimit`: キル数の上限（省略可能、デフォルト: `null` で無制限）
-* `killPointMultiplier`: 1撃破あたりの倍率（1の場合1撃破1pt, 2の場合1撃破2ポイント）、省略可能、デフォルト: `1`
-* 戻り値: Promise（パーティごとの集計結果）
+* `matchData`: The `processedPlayerInfo` array from `ReplayAnalysis`, or a path to its JSON file.
+* `points`: Object mapping placement to points (e.g., `{1:11,2:6,...}`).
+* `killCountUpperLimit`: Upper limit for kills (optional, default `null` for unlimited).
+* `killPointMultiplier`: Points multiplier per kill (optional, default `1`).
+* Returns: `Promise<Array>` of aggregated results per party.
 
 ### `sortScores(scoreArray)`
 
-* 公式準拠のルールでスコアをソートして返します。
-* 引数: `calculateScore`や`mergeScores`の戻り値として得られる配列
-* ソート順:
+Sorts scores according to official Fortnite rules:
 
-  1. 累計ポイント降順
-  2. Victory Royale 回数降順
-  3. 平均撃破数降順
-  4. 平均順位昇順
-  5. 合計生存時間降順
-  6. 最初のパーティ番号昇順
+1. Total points (descending)
+2. Victory Royale count (descending)
+3. Average kills (descending)
+4. Average placement (ascending)
+5. Total survival time (descending)
+6. First party number (ascending)
 
 ### `mergeScores(scoreArrays)`
 
-* 複数マッチ分のスコア配列をパーティ単位でマージします。
-* 引数: ソート済みスコア配列の配列（例: `[sorted1, sorted2, ...]`）
-* 戻り値: マージ後のスコア配列
+* Merges multiple sorted score arrays by party.
+* `scoreArrays`: Array of sorted score arrays (e.g., `[sorted1, sorted2, ...]`).
+* Returns: Merged score array.
 
-## 注意事項
+## Notes
 
-* ディレクトリ指定時は最初に見つけた `.replay` を処理します。
-* 直接ファイルを指定した場合はそのファイルを処理し、`.replay` が存在しない場合でも最初に見つけたものを使用します。
-* 問題が発生しても責任は負いかねます。
-* フォークする場合はGitHubのFork機能を利用し、履歴を追いやすくしてください。
+* When a directory is provided, the first `.replay` file found will be processed.
+* When a file is specified, that file will be processed; if no `.replay` is found, the first one in the directory is used.
+* This software is provided without any warranty. Use it at your own risk.
+* When forking this repository, please use GitHub’s "Fork" feature to retain commit history.
+* I’m not very good at English, so the translation might be incorrect.
+
+## 🔗 Acknowledgements
+
+This project uses the following open-source library:
+
+- [FortniteReplayDecompressor](https://github.com/Shiqan/FortniteReplayDecompressor)  
+  © Shiqan — Licensed under the MIT License.

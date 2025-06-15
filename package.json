@@ -1,7 +1,7 @@
 {
   "name": "fortnite-replay-analysis",
-  "version": "1.1.0",
-  "description": "Fortniteのリプレイ解析をNode.jsから呼べる自己完結型C#バイナリラッパー",
+  "version": "1.1.1",
+  "description": "Fortnite replay analysis tool (Node.js用Fortniteリプレイ解析バイナリラッパー)",
   "repository": {
     "type": "git",
     "url": "https://github.com/yuyutti/Fortnite_Replay_Analysis"
@@ -16,7 +16,18 @@
     "analysis",
     "decimal",
     "csharp",
-    "nodejs"
+    "nodejs",
+    "C#",
+    "fortnite-replay",
+    "fortnite解析",
+    "リプレイ解析",
+    "自動スコア計算",
+    "tournament",
+    "game-analysis",
+    "epicgames",
+    "fortnite-scoring",
+    "match-result",
+    "yuyutti"
   ],
   "author": "yuyutti",
   "license": "MIT",
