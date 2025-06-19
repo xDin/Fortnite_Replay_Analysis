@@ -100,6 +100,26 @@ Sorts scores according to official Fortnite rules:
 * Merges multiple sorted score arrays by party.
 * `scoreArrays`: Array of sorted score arrays (e.g., `[sorted1, sorted2, ...]`).
 * Returns: Merged score array.
+* ※When using `mergeScores`, ensure each entry includes a `matchName` property. Omitting this field may lead to unexpected behavior.
+
+```javascript
+    function loadScores(matchNames) {
+        return matchNames.map(name => {
+            const raw = fs.readFileSync(
+                path.join(outputDir, name, `${name}.json`),
+                'utf8'
+            );
+            const arr = JSON.parse(raw);
+            return arr.map(p => ({ ...p, matchName: name })); // 各マッチデータに対してマッチ名を追加
+        });
+    }
+
+    (async () => {
+        const scores = loadScores(['match1','match2']);
+        let merged = mergeScores(scores);
+        merged = sortScores(merged);
+    })();
+```
 
 ## Notes
 

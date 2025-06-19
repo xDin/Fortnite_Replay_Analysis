@@ -108,6 +108,26 @@ const {
 * 複数マッチ分のスコア配列をパーティ単位でマージします。
 * 引数: ソート済みスコア配列の配列（例: `[sorted1, sorted2, ...]`）
 * 戻り値: マージ後のスコア配列
+* `mergeScores` を使用する際は、各スコアデータに `matchName` プロパティを含めてください。これがないと、一部の処理で正しく動作しない可能性があります。
+
+```javascript
+    function loadScores(matchNames) {
+        return matchNames.map(name => {
+            const raw = fs.readFileSync(
+                path.join(outputDir, name, `${name}.json`),
+                'utf8'
+            );
+            const arr = JSON.parse(raw);
+            return arr.map(p => ({ ...p, matchName: name })); // 各マッチデータに対してマッチ名を追加
+        });
+    }
+
+    (async () => {
+        const scores = loadScores(['match4','match5']);
+        let merged = mergeScores(scores);
+        merged = sortScores(merged);
+    })();
+```
 
 ## 注意事項
 
