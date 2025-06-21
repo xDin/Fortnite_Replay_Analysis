@@ -40,7 +40,7 @@ function ReplayAnalysis(inputPath, { bot = false, sort = true } = {}) { // Fortn
         }
         const binPath = getBinaryPath();
 
-        execFile(binPath, [replayFilePath], (error, stdout, stderr) => {
+        execFile(binPath, [replayFilePath], { maxBuffer: 1024 * 1024 * 20 }, (error, stdout, stderr) => {
             if (error) {
                 reject(new Error(`Execution error: ${error.message}`));
                 return;
