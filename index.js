@@ -184,10 +184,12 @@ function mergeScores(scoreArrays) { // 複数マッチの結果をマージし�
                     partyVictoryRoyaleCount: p.partyVictoryRoyale ? 1 : 0,
                     matchList: [p.matchName],
                     partyMemberList: [...p.partyMemberList],
+                    partyDiscordInfo: p.partyDiscordInfo ? { ...p.partyDiscordInfo } : undefined,
                     partyAliveTimeByMatch: [
                         { match: p.matchName, times: [...(p.partyAliveTimeList || [])] }
                     ],
                     partyPlacementList: [p.partyPlacement],
+                    blockNames: p.blockName ? [p.blockName] : [],
                     matchs: { [p.matchName]: { ...p } }
                 });
             } else {
@@ -204,6 +206,9 @@ function mergeScores(scoreArrays) { // 複数マッチの結果をマージし�
                 });
                 ex.partyPlacementList.push(p.partyPlacement);
                 ex.matchs[p.matchName] = { ...p };
+                if (p.blockName && !ex.blockNames.includes(p.blockName)) {
+                    ex.blockNames.push(p.blockName);
+                }
             }
         })
     );
@@ -212,7 +217,6 @@ function mergeScores(scoreArrays) { // 複数マッチの結果をマージし�
 }
 
 function sortScores(arr) { // 公式準拠のスコアソート関数
-    // リザルトとしてpoint, ビクロイ数, マッチ数, 平均撃破数, 平均順位, 合計生存時間を追加したい
     if (!Array.isArray(arr) || arr.length === 0) return arr;
 
     arr.forEach(p => {
