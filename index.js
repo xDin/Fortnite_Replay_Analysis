@@ -25,11 +25,14 @@ function ReplayAnalysis(inputPath, { bot = false, sort = true } = {}) { // Fortn
         try {
             const stat = fs.statSync(inputPath);
             if (stat.isDirectory()) {
-                const replayFiles = fs.readdirSync(inputPath).filter(f => f.endsWith('.replay'));
-                if (replayFiles.length === 0) {
+                const files = fs.readdirSync(inputPath)
+                    .filter(f => f.endsWith('.replay'))
+                    .map(f => ({ f, t: fs.statSync(path.join(inputPath, f)).mtimeMs }))
+                    .sort((a, b) => b.t - a.t); // 新しい順
+                if (files.length === 0) {
                     return reject(new Error(`No .replay files found in directory: ${inputPath}`));
                 }
-                replayFilePath = path.join(inputPath, replayFiles[0]);
+                replayFilePath = path.join(inputPath, files[0].f);
             } else if (stat.isFile()) {
                 replayFilePath = inputPath;
             } else {
@@ -145,6 +148,7 @@ async function calculateScore({ matchData, points, killCountUpperLimit = null, k
                 partyNumber: player.partyNumber,
                 partyKills: limitedKills,
                 partyKillsNoLimit: player.TeamKills || 0,
+                partyKillPoints: (limitedKills) * killPointMultiplier,
                 partyScore: (points[player.Placement] ?? 0) + ((limitedKills) * killPointMultiplier),
                 partyPoint: points[player.Placement] ?? 0,
                 partyVictoryRoyale: player.Placement === 1,
@@ -181,6 +185,7 @@ function mergeScores(scoreArrays) { // 複数マッチの結果をマージし�
                     partyPoint: p.partyPoint,
                     partyKills: p.partyKills,
                     partyKillsNoLimit: p.partyKillsNoLimit,
+                    partyKillPoints: p.partyKillPoints,
                     partyVictoryRoyaleCount: p.partyVictoryRoyale ? 1 : 0,
                     matchList: [p.matchName],
                     partyMemberList: [...p.partyMemberList],
@@ -198,6 +203,7 @@ function mergeScores(scoreArrays) { // 複数マッチの結果をマージし�
                 ex.partyPoint              += p.partyPoint;
                 ex.partyKills              += p.partyKills;
                 ex.partyKillsNoLimit       += p.partyKillsNoLimit;
+                ex.partyKillPoints         += p.partyKillPoints;
                 ex.partyVictoryRoyaleCount += p.partyVictoryRoyale ? 1 : 0;
                 ex.matchList.push(p.matchName);
                 ex.partyAliveTimeByMatch.push({
@@ -253,7 +259,7 @@ function sortScores(arr) { // 公式準拠のスコアソート関数
         }
 
         // 4. 平均順位（小さいほうが上位）
-        const cmpAvgPlacement = b.summary.avgPlacement.comparedTo(a.summary.avgPlacement);
+        const cmpAvgPlacement = a.summary.avgPlacement.comparedTo(b.summary.avgPlacement);
         if (cmpAvgPlacement !== 0) {
             return cmpAvgPlacement;
         }
