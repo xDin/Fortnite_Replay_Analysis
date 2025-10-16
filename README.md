@@ -38,7 +38,7 @@ npm install fortnite-replay-analysis@latest
             processedPlayerInfo
         } = await ReplayAnalysis(
             './path/to/replayDirOrFile',
-            { bot: false, sort: true }
+            { bot: false, sort: true, dumpPath: './replay_dump.json' }
         );
 
         console.log('Raw Data:', rawPlayerData);
@@ -74,6 +74,7 @@ npm install fortnite-replay-analysis@latest
 
   * `bot` (boolean): Include bot players (default: `false`).
   * `sort` (boolean): Sort by placement (default: `true`).
+  * `dumpPath` (string): Write the complete parsed replay JSON to this file path (optional).
 * Returns: `Promise<{ rawReplayData: Object, rawPlayerData: Array, processedPlayerInfo: Array }>`
 
 ### `calculateScore({ matchData, points, killCountUpperLimit, killPointMultiplier })`

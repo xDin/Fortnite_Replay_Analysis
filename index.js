@@ -17,7 +17,7 @@ function getBinaryPath() { // OS判定して自己完結バイナリの実行フ
     }
 }
 
-function ReplayAnalysis(inputPath, { bot = false, sort = true } = {}) { // Fortniteのリプレイファイルを解析してプレイヤーデータを返す
+function ReplayAnalysis(inputPath, { bot = false, sort = true, dumpPath = null } = {}) { // Fortniteのリプレイファイルを解析してプレイヤーデータを返す
     return new Promise((resolve, reject) => {
 
         let replayFilePath;
@@ -63,6 +63,19 @@ function ReplayAnalysis(inputPath, { bot = false, sort = true } = {}) { // Fortn
             const playerData = parsed.PlayerData;
 
             try {
+
+                if (dumpPath) {
+                    try {
+                        const targetDir = path.dirname(dumpPath);
+                        if (targetDir && targetDir !== '.') {
+                            fs.mkdirSync(targetDir, { recursive: true });
+                        }
+                        fs.writeFileSync(dumpPath, JSON.stringify(parsed, null, 2), 'utf8');
+                    } catch (writeErr) {
+                        reject(new Error(`Failed to write dump file: ${writeErr.message}`));
+                        return;
+                    }
+                }
 
                 if (!Array.isArray(playerData)) {
                     reject(new Error(`Unexpected JSON format: playerData is not an array.`));

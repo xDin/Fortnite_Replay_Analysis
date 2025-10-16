@@ -40,7 +40,7 @@ const {
         processedPlayerInfo
     } = await ReplayAnalysis(
         './path/to/replayDirOrFile',
-        { bot: false, sort: true }
+        { bot: false, sort: true, dumpPath: './replay_dump.json' }
     );
 
     console.log('Raw Data:', rawPlayerData);
@@ -76,6 +76,7 @@ const {
 
   * `bot`（boolean）: botプレイヤーを含めるか（デフォルト: `false`）
   * `sort`（boolean）: 順位でソートするか（デフォルト: `true`）
+  * `dumpPath`（string）: 解析したリプレイJSON全体をこのパスに書き出します（省略可）。
 * 戻り値: Promise<{
   rawReplayData: Object,
   rawPlayerData: Array,
